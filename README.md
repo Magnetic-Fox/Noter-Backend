@@ -117,4 +117,4 @@ If you like to use any part of these codes in your software, just please give me
 In case you would like to make paid software and use parts of these codes - please, contact me before.
 
 *Bartłomiej "Magnetic-Fox" Węgrzyn,
-8th November, 2021 - 6th November, 2023*
+November 8, 2021 - November 6, 2023*

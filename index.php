@@ -1,17 +1,8 @@
 <?php
 
-include_once('noter-config.php');
-include_once('noterapi.php');
-include_once('noterconst.php');
-
-header("Content-Type: application/json");
-
-$server_info=array("name" => $server_name, "timezone" => $server_timezone, "version" => "1.0");
-$response=array();
-
 /*
 
-NoterAPI v1.0b (less ugly)
+Noter Backend v1.0b (less ugly)
 (C)2021-2023 Bartłomiej "Magnetic-Fox" Węgrzyn!
 
  Actions:
@@ -31,9 +22,16 @@ unlock		Unlock note
 
 */
 
-// --------------------------------------------------------------------------------------------
-// Main part of the script.
-// --------------------------------------------------------------------------------------------
+include_once('noter-config.php');
+include_once('noterapi.php');
+include_once('noterconst.php');
+
+// Main part of the backend
+
+header("Content-Type: application/json");
+
+$server_info=array("name" => $server_name, "timezone" => $server_timezone, "version" => "1.0");
+$response=array();
 
 if(!$noter_enabled)
 {

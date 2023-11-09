@@ -86,6 +86,11 @@ function nowDate()
 	return $dt->format("Y-m-d H:i:s.u");
 }
 
+function answerInfo($code, $attachment = array())
+{
+	return array("code" => $code, "attachment" => $attachment);
+}
+
 function userExists($username)
 {
 	global $conn;
@@ -153,7 +158,7 @@ function register($username, $password)
 function userUpdate($username, $password, $newPassword)
 {
 	global $conn;
-	$newPassword=trim($newPassword);
+	//$newPassword=trim($newPassword);
 	if(($username!="") && ($password!="") && ($newPassword!=""))
 	{
 		$res=login($username,$password);
@@ -178,11 +183,6 @@ function userUpdate($username, $password, $newPassword)
 	return 0;
 }
 
-function answerInfo($code, $attachment = array())
-{
-	return array("code" => $code, "attachment" => $attachment);
-}
-
 function noteLocked($noteID)
 {
 	global $conn;
@@ -203,6 +203,388 @@ function noteLockState($noteID, $userID, $lockState)
 	$stmt->bind_param("iii",$lockState,$noteID,$userID);
 	$stmt->execute();
 	return ($conn->affected_rows>0);
+}
+
+function userRegister($username, $password)
+{
+	global $conn;
+	$answer_info=null;
+	$res=register($username,$password);
+	if($res==-1)
+	{
+		$answer_info=answerInfo(-3);
+	}
+	else if($res==1)
+	{
+		$answer_info=answerInfo(1);
+	}
+	else
+	{
+		$answer_info=answerInfo(-4);
+	}
+	return array($answer_info,null);
+}
+
+function userChangePassword($username, $password, $newPassword)
+{
+	global $conn;
+	$answer_info=null;
+	$res=userUpdate($username,$password,$newPassword);
+	if($res==1)
+	{
+		$answer_info=answerInfo(2);
+	}
+	else if($res==-1)
+	{
+		$answer_info=answerInfo(-7);
+	}
+	else
+	{
+		$answer_info=answerInfo(-6);
+	}
+	return array($answer_info,null);
+}
+
+function userInfo($username, $password)
+{
+	global $conn;
+	$answer=null;
+	$answer_info=null;
+	$res=login($username,$password);
+	if($res>=1)
+	{
+		$query="SELECT ID, UserName, DateRegistered, UserAgent, LastChanged, LastUserAgent FROM Noter_Users WHERE ID=?";
+		$stmt=$conn->prepare($query);
+		$stmt->bind_param("i",$res);
+		$stmt->execute();
+		$stmt->bind_result($id, $username, $dateRegistered, $userAgent, $lastChanged, $lastUserAgent);
+		$stmt->fetch();
+		$answer=array("user" => array("id" => $id, "username" => $username, "date_registered" => exportDate($dateRegistered), "user_agent" => $userAgent, "last_changed" => exportDate($lastChanged), "last_user_agent" => $lastUserAgent));
+		$answer_info=answerInfo(9,array("user"));
+	}
+	else if($res==-1)
+	{
+		$answer_info=answerInfo(-7);
+	}
+	else
+	{
+		$answer_info=answerInfo(-6);
+	}
+	return array($answer_info,$answer);
+}
+
+function userRemove($username, $password)
+{
+	global $conn;
+	$answer_info=null;
+	$res=login($username,$password);
+	if($res>=1)
+	{
+		$query="DELETE FROM Noter_Entries WHERE UserID=?";
+		$stmt=$conn->prepare($query);
+		$stmt->bind_param("i",$res);
+		$stmt->execute();
+		if($conn->affected_rows!=-1)
+		{
+			$query="DELETE FROM Noter_Users WHERE ID=?";
+			$stmt=$conn->prepare($query);
+			$stmt->bind_param("i",$res);
+			$stmt->execute();
+			if($conn->affected_rows>0)
+			{
+				$answer_info=answerInfo(3);
+			}
+			else
+			{
+				$answer_info=answerInfo(-10);
+			}
+		}
+		else
+		{
+			$answer_info=answerInfo(-11);
+		}
+	}
+	else if($res==-1)
+	{
+		$answer_info=answerInfo(-7);
+	}
+	else
+	{
+		$answer_info=answerInfo(-6);
+	}
+	return array($answer_info,null);
+}
+
+function noteList($username, $password)
+{
+	global $conn;
+	$answer=null;
+	$answer_info=null;
+	$res=login($username,$password);
+	if($res>=1)
+	{
+		$query="SELECT ID, Subject, LastModified FROM Noter_Entries WHERE UserID = ? ORDER BY LastModified DESC";
+		$stmt=$conn->prepare($query);
+		$stmt->bind_param("i",$res);
+		$stmt->execute();
+		$stmt->bind_result($id, $subject, $lastModified);
+		$count=0;
+		$notesSummary=array();
+		while($stmt->fetch())
+		{
+			$count++;
+			array_push($notesSummary,array("id" => $id, "subject" => $subject, "last_modified" => exportDate($lastModified)));
+		}
+		$answer_info=answerInfo(4,array("count","notes_summary"));
+		$answer=array("count" => $count, "notes_summary" => $notesSummary);
+	}
+	else if($res==-1)
+	{
+		$answer_info=answerInfo(-7);
+	}
+	else
+	{
+		$answer_info=answerInfo(-6);
+	}
+	return array($answer_info,$answer);
+}
+
+function getNote($username, $password, $noteID)
+{
+	global $conn;
+	$answer=null;
+	$answer_info=null;
+	$res=login($username,$password);
+	if($res>=1)
+	{
+		$query="SELECT ID, Subject, Entry, DateAdded, LastModified, Locked, UserAgent, LastUserAgent FROM Noter_Entries WHERE ID=? AND UserID=?";
+		$stmt=$conn->prepare($query);
+		$stmt->bind_param("ii",$noteID,$res);
+		$stmt->execute();
+		$stmt->bind_result($id,$subject,$entry,$dateAdded,$lastModified,$locked,$userAgent,$lastUserAgent);
+		if($stmt->fetch())
+		{
+			$answer_info=answerInfo(5,array("note"));
+			$answer=array("note" => array("id" => $id, "subject" => $subject, "entry" => $entry, "date_added" => exportDate($dateAdded), "last_modified" => exportDate($lastModified), "locked" => $locked, "user_agent" => $userAgent, "last_user_agent" => $lastUserAgent));
+		}
+		else
+		{
+			$answer_info=answerInfo(-9);
+		}
+	}
+	else if($res==-1)
+	{
+		$answer_info=answerInfo(-7);
+	}
+	else
+	{
+		$answer_info=answerInfo(-6);
+	}
+	return array($answer_info,$answer);
+}
+
+function addNote($username, $password, $subject, $entry)
+{
+	global $conn;
+	$answer=null;
+	$answer_info=null;
+	$res=login($username,$password);
+	if($res>=1)
+	{
+		if(($subject!="") && ($entry!=""))
+		{
+			$now=nowDate();
+			$query="INSERT INTO Noter_Entries(UserID, Subject, Entry, DateAdded, LastModified, RemoteAddress, ForwardedFor, UserAgent, LastRemoteAddress, LastForwardedFor, LastUserAgent) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+			$stmt=$conn->prepare($query);
+			$stmt->bind_param("issssssssss",$res,$subject,$entry,$now,$now,$_SERVER["REMOTE_ADDR"],$_SERVER["HTTP_X_FORWARDED_FOR"],$_SERVER["HTTP_USER_AGENT"],$_SERVER["REMOTE_ADDR"],$_SERVER["HTTP_X_FORWARDED_FOR"],$_SERVER["HTTP_USER_AGENT"]);
+			$stmt->execute();
+			if($conn->affected_rows!=-1)
+			{
+				$answer_info=answerInfo(6,array("new_id"));
+				$query="SELECT MAX(ID) FROM Noter_Entries WHERE UserID=?";
+				$stmt=$conn->prepare($query);
+				$stmt->bind_param("i",$res);
+				$stmt->execute();
+				$stmt->bind_result($newID);
+				$stmt->fetch();
+				$answer=array("new_id" => $newID);
+			}
+			else
+			{
+				$answer_info=answerInfo(-512);
+			}
+		}
+		else
+		{
+			$answer_info=answerInfo(-8);
+		}
+		
+	}
+	else if($res==-1)
+	{
+		$answer_info=answerInfo(-7);
+	}
+	else
+	{
+		$answer_info=answerInfo(-6);
+	}
+	return array($answer_info,$answer);
+}
+
+function updateNote($username, $password, $subject, $entry, $noteID)
+{
+	global $conn;
+	$answer=null;
+	$answer_info=null;
+	$res=login($username,$password);
+	if($res>=1)
+	{
+		if(($subject!="") && ($entry!=""))
+		{
+			if(noteLocked($noteID))
+			{
+				$answer_info=answerInfo(-12);
+			}
+			else
+			{
+				$now=nowDate();
+				$query="UPDATE Noter_Entries SET Subject=?, Entry=?, LastModified=?, LastRemoteAddress=?, LastForwardedFor=?, LastUserAgent=? WHERE ID=? AND UserID=?";
+				$stmt=$conn->prepare($query);
+				$stmt->bind_param("ssssssii",$subject,$entry,$now,$_SERVER["REMOTE_ADDR"],$_SERVER["HTTP_X_FORWARDED_FOR"],$_SERVER["HTTP_USER_AGENT"],$noteID,$res);
+				$stmt->execute();
+				if($conn->affected_rows>0)
+				{
+					$answer_info=answerInfo(7);
+				}
+				else
+				{
+					$answer_info=answerInfo(-9);
+				}
+			}
+		}
+		else
+		{
+			$answer_info=answerInfo(-8);
+		}
+	}
+	else if($res==-1)
+	{
+		$answer_info=answerInfo(-7);
+	}
+	else
+	{
+		$answer_info=answerInfo(-6);
+	}
+	return array($answer_info,$answer);
+}
+
+function deleteNote($username, $password, $noteID)
+{
+	global $conn;
+	$answer=null;
+	$answer_info=null;
+	$res=login($username,$password);
+	if($res>=1)
+	{
+		if(noteLocked($noteID))
+		{
+			$answer_info=answerInfo(-12);
+		}
+		else
+		{
+			$query="DELETE FROM Noter_Entries WHERE ID=? AND UserID=?";
+			$stmt=$conn->prepare($query);
+			$stmt->bind_param("ii",$noteID,$res);
+			$stmt->execute();
+			if($conn->affected_rows>0)
+			{
+				$answer_info=answerInfo(8);
+			}
+			else
+			{
+				$answer_info=answerInfo(-9);
+			}
+		}
+	}
+	else if($res==-1)
+	{
+		$answer_info=answerInfo(-7);
+	}
+	else
+	{
+		$answer_info=answerInfo(-6);
+	}
+	return array($answer_info,$answer);
+}
+
+function lockNote($username, $password, $noteID)
+{
+	global $conn;
+	$answer=null;
+	$answer_info=null;
+	$res=login($username,$password);
+	if($res>=1)
+	{
+		if(noteLockState($noteID,$res,true))
+		{
+			$answer_info=answerInfo(10);
+		}
+		else
+		{
+			if(noteLocked($noteID))
+			{
+				$answer_info=answerInfo(-13);
+			}
+			else
+			{
+				$answer_info=answerInfo(-9);
+			}
+		}
+	}
+	else if($res==-1)
+	{
+		$answer_info=answerInfo(-7);
+	}
+	else
+	{
+		$answer_info=answerInfo(-6);
+	}
+	return array($answer_info,$answer);
+}
+
+function unlockNote($username, $password, $noteID)
+{
+	global $conn;
+	$answer=null;
+	$answer_info=null;
+	$res=login($username,$password);
+	if($res>=1)
+	{
+		if(noteLockState($noteID,$res,false))
+		{
+			$answer_info=answerInfo(11);
+		}
+		else
+		{
+			if(noteLocked($noteID))
+			{
+				$answer_info=answerInfo(-9);
+			}
+			else
+			{
+				$answer_info=answerInfo(-14);
+			}
+		}
+	}
+	else if($res==-1)
+	{
+		$answer_info=answerInfo(-7);
+	}
+	else
+	{
+		$answer_info=answerInfo(-6);
+	}
+	return array($answer_info,$answer);
 }
 
 // --------------------------------------------------------------------------------------------
@@ -235,14 +617,9 @@ else if($_SERVER["REQUEST_METHOD"]=="POST")
 		$pt=trim($_POST["password"]);
 		if($_POST["action"]=="register")
 		{
-			$res=register($ut,$pt);
-			if($res==-1)
+			if(($ut!="") && ($pt!=""))
 			{
-				$answer_info=answerInfo(-3);
-			}
-			else if($res==1)
-			{
-				$answer_info=answerInfo(1);
+				list($answer_info,$answer)=userRegister($ut,$pt);
 			}
 			else
 			{
@@ -253,21 +630,10 @@ else if($_SERVER["REQUEST_METHOD"]=="POST")
 		{
 			if(($ut!="") && ($pt!=""))
 			{
-				if((array_key_exists("newPassword",$_POST)) && ($_POST["newPassword"]!=""))
+				if(array_key_exists("newPassword",$_POST))
 				{
-					$res=userUpdate($ut,$pt,$_POST["newPassword"]);
-					if($res==1)
-					{
-						$answer_info=answerInfo(2);
-					}
-					else if($res==-1)
-					{
-						$answer_info=answerInfo(-7);
-					}
-					else
-					{
-						$answer_info=answerInfo(-6);
-					}
+					$newPassword=trim($_POST["newPassword"]);
+					list($answer_info,$answer)=userChangePassword($ut,$pt,$newPassword);
 				}
 				else
 				{
@@ -283,26 +649,7 @@ else if($_SERVER["REQUEST_METHOD"]=="POST")
 		{
 			if(($ut!="") && ($pt!=""))
 			{
-				$res=login($ut,$pt);
-				if($res>=1)
-				{
-					$query="SELECT ID, UserName, DateRegistered, UserAgent, LastChanged, LastUserAgent FROM Noter_Users WHERE ID=?";
-					$stmt=$conn->prepare($query);
-					$stmt->bind_param("i",$res);
-					$stmt->execute();
-					$stmt->bind_result($id, $username, $dateRegistered, $userAgent, $lastChanged, $lastUserAgent);
-					$stmt->fetch();
-					$answer=array("user" => array("id" => $id, "username" => $username, "date_registered" => exportDate($dateRegistered), "user_agent" => $userAgent, "last_changed" => exportDate($lastChanged), "last_user_agent" => $lastUserAgent));
-					$answer_info=answerInfo(9,array("user"));
-				}
-				else if($res==-1)
-				{
-					$answer_info=answerInfo(-7);
-				}
-				else
-				{
-					$answer_info=answerInfo(-6);
-				}
+				list($answer_info,$answer)=userInfo($ut,$pt);
 			}
 			else
 			{
@@ -313,41 +660,7 @@ else if($_SERVER["REQUEST_METHOD"]=="POST")
 		{
 			if(($ut!="") && ($pt!=""))
 			{
-				$res=login($ut,$pt);
-				if($res>=1)
-				{
-					$query="DELETE FROM Noter_Entries WHERE UserID=?";
-					$stmt=$conn->prepare($query);
-					$stmt->bind_param("i",$res);
-					$stmt->execute();
-					if($conn->affected_rows!=-1)
-					{
-						$query="DELETE FROM Noter_Users WHERE ID=?";
-						$stmt=$conn->prepare($query);
-						$stmt->bind_param("i",$res);
-						$stmt->execute();
-						if($conn->affected_rows>0)
-						{
-							$answer_info=answerInfo(3);
-						}
-						else
-						{
-							$answer_info=answerInfo(-10);
-						}
-					}
-					else
-					{
-						$answer_info=answerInfo(-11);
-					}
-				}
-				else if($res==-1)
-				{
-					$answer_info=answerInfo(-7);
-				}
-				else
-				{
-					$answer_info=answerInfo(-6);
-				}
+				list($answer_info,$answer)=userRemove($ut,$pt);
 			}
 			else
 			{
@@ -358,32 +671,7 @@ else if($_SERVER["REQUEST_METHOD"]=="POST")
 		{
 			if(($ut!="") && ($pt!=""))
 			{
-				$res=login($ut,$pt);
-				if($res>=1)
-				{
-					$query="SELECT ID, Subject, LastModified FROM Noter_Entries WHERE UserID = ? ORDER BY LastModified DESC";
-					$stmt=$conn->prepare($query);
-					$stmt->bind_param("i",$res);
-					$stmt->execute();
-					$stmt->bind_result($id, $subject, $lastModified);
-					$count=0;
-					$notesSummary=array();
-					while($stmt->fetch())
-					{
-						$count++;
-						array_push($notesSummary,array("id" => $id, "subject" => $subject, "last_modified" => exportDate($lastModified)));
-					}
-					$answer_info=answerInfo(4,array("count","notes_summary"));
-					$answer=array("count" => $count, "notes_summary" => $notesSummary);
-				}
-				else if($res==-1)
-				{
-					$answer_info=answerInfo(-7);
-				}
-				else
-				{
-					$answer_info=answerInfo(-6);
-				}
+				list($answer_info,$answer)=noteList($ut,$pt);
 			}
 			else
 			{
@@ -394,38 +682,14 @@ else if($_SERVER["REQUEST_METHOD"]=="POST")
 		{
 			if(($ut!="") && ($pt!=""))
 			{
-				$res=login($ut,$pt);
-				if($res>=1)
+				if(array_key_exists("noteID",$_POST))
 				{
-					if(array_key_exists("noteID",$_POST))
-					{
-						$query="SELECT ID, Subject, Entry, DateAdded, LastModified, Locked, UserAgent, LastUserAgent FROM Noter_Entries WHERE ID=? AND UserID=?";
-						$stmt=$conn->prepare($query);
-						$stmt->bind_param("ii",$_POST["noteID"],$res);
-						$stmt->execute();
-						$stmt->bind_result($id,$subject,$entry,$dateAdded,$lastModified,$locked,$userAgent,$lastUserAgent);
-						if($stmt->fetch())
-						{
-							$answer_info=answerInfo(5,array("note"));
-							$answer=array("note" => array("id" => $id, "subject" => $subject, "entry" => $entry, "date_added" => exportDate($dateAdded), "last_modified" => exportDate($lastModified), "locked" => $locked, "user_agent" => $userAgent, "last_user_agent" => $lastUserAgent));
-						}
-						else
-						{
-							$answer_info=answerInfo(-9);
-						}
-					}
-					else
-					{
-						$answer_info=answerInfo(-8);
-					}
-				}
-				else if($res==-1)
-				{
-					$answer_info=answerInfo(-7);
+					$noteID=$_POST["noteID"];
+					list($answer_info,$answer)=getNote($ut,$pt,$noteID);
 				}
 				else
 				{
-					$answer_info=answerInfo(-6);
+					$answer_info=answerInfo(-8);
 				}
 			}
 			else
@@ -437,53 +701,15 @@ else if($_SERVER["REQUEST_METHOD"]=="POST")
 		{
 			if(($ut!="") && ($pt!=""))
 			{
-				$res=login($ut,$pt);
-				if($res>=1)
+				if(array_key_exists("subject",$_POST) && array_key_exists("entry",$_POST))
 				{
-					if(array_key_exists("subject",$_POST) && array_key_exists("entry",$_POST))
-					{
-						$subt=trim($_POST["subject"]);
-						$entt=trim($_POST["entry"]);
-						if(($subt!="") && ($entt!=""))
-						{
-							$now=nowDate();
-							$query="INSERT INTO Noter_Entries(UserID, Subject, Entry, DateAdded, LastModified, RemoteAddress, ForwardedFor, UserAgent, LastRemoteAddress, LastForwardedFor, LastUserAgent) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
-							$stmt=$conn->prepare($query);
-							$stmt->bind_param("issssssssss",$res,$subt,$entt,$now,$now,$_SERVER["REMOTE_ADDR"],$_SERVER["HTTP_X_FORWARDED_FOR"],$_SERVER["HTTP_USER_AGENT"],$_SERVER["REMOTE_ADDR"],$_SERVER["HTTP_X_FORWARDED_FOR"],$_SERVER["HTTP_USER_AGENT"]);
-							$stmt->execute();
-							if($conn->affected_rows!=-1)
-							{
-								$answer_info=answerInfo(6,array("new_id"));
-								$query="SELECT MAX(ID) FROM Noter_Entries WHERE UserID=?";
-								$stmt=$conn->prepare($query);
-								$stmt->bind_param("i",$res);
-								$stmt->execute();
-								$stmt->bind_result($newID);
-								$stmt->fetch();
-								$answer=array("new_id" => $newID);
-							}
-							else
-							{
-								$answer_info=answerInfo(-512);
-							}
-						}
-						else
-						{
-							$answer_info=answerInfo(-8);
-						}
-					}
-					else
-					{
-						$answer_info=answerInfo(-8);
-					}
-				}
-				else if($res==-1)
-				{
-					$answer_info=answerInfo(-7);
+					$subt=trim($_POST["subject"]);
+					$entt=trim($_POST["entry"]);
+					list($answer_info,$answer)=addNote($ut,$pt,$subt,$entt);
 				}
 				else
 				{
-					$answer_info=answerInfo(-6);
+					$answer_info=answerInfo(-8);
 				}
 			}
 			else
@@ -495,54 +721,16 @@ else if($_SERVER["REQUEST_METHOD"]=="POST")
 		{
 			if(($ut!="") && ($pt!=""))
 			{
-				$res=login($ut,$pt);
-				if($res>=1)
+				if((array_key_exists("noteID",$_POST)) && (array_key_exists("subject",$_POST)) && (array_key_exists("entry",$_POST)))
 				{
-					if((array_key_exists("noteID",$_POST)) && (array_key_exists("subject",$_POST)) && (array_key_exists("entry",$_POST)))
-					{
-						$subt=trim($_POST["subject"]);
-						$entt=trim($_POST["entry"]);
-						if(($subt!="") && ($entt!=""))
-						{
-							$noteID=$_POST["noteID"];
-							if(noteLocked($noteID))
-							{
-								$answer_info=answerInfo(-12);
-							}
-							else
-							{
-								$now=nowDate();
-								$query="UPDATE Noter_Entries SET Subject=?, Entry=?, LastModified=?, LastRemoteAddress=?, LastForwardedFor=?, LastUserAgent=? WHERE ID=? AND UserID=?";
-								$stmt=$conn->prepare($query);
-								$stmt->bind_param("ssssssii",$subt,$entt,$now,$_SERVER["REMOTE_ADDR"],$_SERVER["HTTP_X_FORWARDED_FOR"],$_SERVER["HTTP_USER_AGENT"],$noteID,$res);
-								$stmt->execute();
-								if($conn->affected_rows>0)
-								{
-									$answer_info=answerInfo(7);
-								}
-								else
-								{
-									$answer_info=answerInfo(-9);
-								}
-							}
-						}
-						else
-						{
-							$answer_info=answerInfo(-8);
-						}
-					}
-					else
-					{
-						$answer_info=answerInfo(-8);
-					}
-				}
-				else if($res==-1)
-				{
-					$answer_info=answerInfo(-7);
+					$subt=trim($_POST["subject"]);
+					$entt=trim($_POST["entry"]);
+					$noteID=$_POST["noteID"];
+					list($answer_info,$answer)=updateNote($ut,$pt,$subt,$entt,$noteID);
 				}
 				else
 				{
-					$answer_info=answerInfo(-6);
+					$answer_info=answerInfo(-8);
 				}
 			}
 			else
@@ -554,44 +742,14 @@ else if($_SERVER["REQUEST_METHOD"]=="POST")
 		{
 			if(($ut!="") && ($pt!=""))
 			{
-				$res=login($ut,$pt);
-				if($res>=1)
+				if(array_key_exists("noteID",$_POST))
 				{
-					if(array_key_exists("noteID",$_POST))
-					{
-						$noteID=$_POST["noteID"];
-						if(noteLocked($noteID))
-						{
-							$answer_info=answerInfo(-12);
-						}
-						else
-						{
-							$query="DELETE FROM Noter_Entries WHERE ID=? AND UserID=?";
-							$stmt=$conn->prepare($query);
-							$stmt->bind_param("ii",$noteID,$res);
-							$stmt->execute();
-							if($conn->affected_rows>0)
-							{
-								$answer_info=answerInfo(8);
-							}
-							else
-							{
-								$answer_info=answerInfo(-9);
-							}
-						}
-					}
-					else
-					{
-						$answer_info=answerInfo(-8);
-					}
-				}
-				else if($res==-1)
-				{
-					$answer_info=answerInfo(-7);
+					$noteID=$_POST["noteID"];
+					list($answer_info,$answer)=deleteNote($ut,$pt,$noteID);
 				}
 				else
 				{
-					$answer_info=answerInfo(-6);
+					$answer_info=answerInfo(-8);
 				}
 			}
 			else
@@ -603,35 +761,14 @@ else if($_SERVER["REQUEST_METHOD"]=="POST")
 		{
 			if(($ut!="") && ($pt!=""))
 			{
-				$res=login($ut,$pt);
-				if($res>=1)
+				if(array_key_exists("noteID",$_POST))
 				{
-					if(array_key_exists("noteID",$_POST))
-					{
-						if(noteLockState($_POST["noteID"],$res,true))
-						{
-							$answer_info=answerInfo(10);
-						}
-						else
-						{
-							if(noteLocked($_POST["noteID"]))
-							{
-								$answer_info=answerInfo(-13);
-							}
-							else
-							{
-								$answer_info=answerInfo(-9);
-							}
-						}
-					}
-				}
-				else if($res==-1)
-				{
-					$answer_info=answerInfo(-7);
+					$noteID=$_POST["noteID"];
+					list($answer_info,$answer)=lockNote($ut,$pt,$noteID);
 				}
 				else
 				{
-					$answer_info=answerInfo(-6);
+					$answer_info=answerInfo(-8);
 				}
 			}
 			else
@@ -643,35 +780,14 @@ else if($_SERVER["REQUEST_METHOD"]=="POST")
 		{
 			if(($ut!="") && ($pt!=""))
 			{
-				$res=login($ut,$pt);
-				if($res>=1)
+				if(array_key_exists("noteID",$_POST))
 				{
-					if(array_key_exists("noteID",$_POST))
-					{
-						if(noteLockState($_POST["noteID"],$res,false))
-						{
-							$answer_info=answerInfo(11);
-						}
-						else
-						{
-							if(noteLocked($_POST["noteID"]))
-							{
-								$answer_info=answerInfo(-9);
-							}
-							else
-							{
-								$answer_info=answerInfo(-14);
-							}
-						}
-					}
-				}
-				else if($res==-1)
-				{
-					$answer_info=answerInfo(-7);
+					$noteID=$_POST["noteID"];
+					list($answer_info,$answer)=unlockNote($ut,$pt,$noteID);
 				}
 				else
 				{
-					$answer_info=answerInfo(-6);
+					$answer_info=answerInfo(-8);
 				}
 			}
 			else

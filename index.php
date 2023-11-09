@@ -613,186 +613,114 @@ else if($_SERVER["REQUEST_METHOD"]=="POST")
 {
 	if(array_key_exists("action",$_POST) && (array_key_exists("username",$_POST)) && array_key_exists("password",$_POST))
 	{
-		$ut=trim($_POST["username"]);
-		$pt=trim($_POST["password"]);
-		if($_POST["action"]=="register")
+		$action=trim($_POST["action"]);
+		$username=trim($_POST["username"]);
+		$password=trim($_POST["password"]);
+		if(($username=="") || ($password==""))
 		{
-			if(($ut!="") && ($pt!=""))
+			$answer_info=answerInfo(-4);
+		}
+		else if($action=="register")
+		{
+			list($answer_info,$answer)=userRegister($username,$password);
+		}
+		else if($action=="change")
+		{
+			if(array_key_exists("newPassword",$_POST))
 			{
-				list($answer_info,$answer)=userRegister($ut,$pt);
+				$newPassword=trim($_POST["newPassword"]);
+				list($answer_info,$answer)=userChangePassword($username,$password,$newPassword);
 			}
 			else
 			{
-				$answer_info=answerInfo(-4);
+				$answer_info=answerInfo(-8);
 			}
 		}
-		else if($_POST["action"]=="change")
+		else if($action=="info")
 		{
-			if(($ut!="") && ($pt!=""))
+			list($answer_info,$answer)=userInfo($username,$password);
+		}
+		else if($action=="remove")
+		{
+			list($answer_info,$answer)=userRemove($username,$password);
+		}
+		else if($action=="list")
+		{
+			list($answer_info,$answer)=noteList($username,$password);
+		}
+		else if($action=="retrieve")
+		{
+			if(array_key_exists("noteID",$_POST))
 			{
-				if(array_key_exists("newPassword",$_POST))
-				{
-					$newPassword=trim($_POST["newPassword"]);
-					list($answer_info,$answer)=userChangePassword($ut,$pt,$newPassword);
-				}
-				else
-				{
-					$answer_info=answerInfo(-8);
-				}
+				$noteID=$_POST["noteID"];
+				list($answer_info,$answer)=getNote($username,$password,$noteID);
 			}
 			else
 			{
-				$answer_info=answerInfo(-4);
+				$answer_info=answerInfo(-8);
 			}
 		}
-		else if($_POST["action"]=="info")
+		else if($action=="add")
 		{
-			if(($ut!="") && ($pt!=""))
+			if(array_key_exists("subject",$_POST) && array_key_exists("entry",$_POST))
 			{
-				list($answer_info,$answer)=userInfo($ut,$pt);
+				$subject=trim($_POST["subject"]);
+				$entry=trim($_POST["entry"]);
+				list($answer_info,$answer)=addNote($username,$password,$subject,$entry);
 			}
 			else
 			{
-				$answer_info=answerInfo(-4);
+				$answer_info=answerInfo(-8);
 			}
 		}
-		else if($_POST["action"]=="remove")
+		else if($action=="update")
 		{
-			if(($ut!="") && ($pt!=""))
+			if((array_key_exists("noteID",$_POST)) && (array_key_exists("subject",$_POST)) && (array_key_exists("entry",$_POST)))
 			{
-				list($answer_info,$answer)=userRemove($ut,$pt);
+				$subject=trim($_POST["subject"]);
+				$entry=trim($_POST["entry"]);
+				$noteID=$_POST["noteID"];
+				list($answer_info,$answer)=updateNote($username,$password,$subject,$entry,$noteID);
 			}
 			else
 			{
-				$answer_info=answerInfo(-4);
+				$answer_info=answerInfo(-8);
 			}
 		}
-		else if($_POST["action"]=="list")
+		else if($action=="delete")
 		{
-			if(($ut!="") && ($pt!=""))
+			if(array_key_exists("noteID",$_POST))
 			{
-				list($answer_info,$answer)=noteList($ut,$pt);
+				$noteID=$_POST["noteID"];
+				list($answer_info,$answer)=deleteNote($username,$password,$noteID);
 			}
 			else
 			{
-				$answer_info=answerInfo(-4);
+				$answer_info=answerInfo(-8);
 			}
 		}
-		else if($_POST["action"]=="retrieve")
+		else if($action=="lock")
 		{
-			if(($ut!="") && ($pt!=""))
+			if(array_key_exists("noteID",$_POST))
 			{
-				if(array_key_exists("noteID",$_POST))
-				{
-					$noteID=$_POST["noteID"];
-					list($answer_info,$answer)=getNote($ut,$pt,$noteID);
-				}
-				else
-				{
-					$answer_info=answerInfo(-8);
-				}
+				$noteID=$_POST["noteID"];
+				list($answer_info,$answer)=lockNote($username,$password,$noteID);
 			}
 			else
 			{
-				$answer_info=answerInfo(-4);
+				$answer_info=answerInfo(-8);
 			}
 		}
-		else if($_POST["action"]=="add")
+		else if($action=="unlock")
 		{
-			if(($ut!="") && ($pt!=""))
+			if(array_key_exists("noteID",$_POST))
 			{
-				if(array_key_exists("subject",$_POST) && array_key_exists("entry",$_POST))
-				{
-					$subt=trim($_POST["subject"]);
-					$entt=trim($_POST["entry"]);
-					list($answer_info,$answer)=addNote($ut,$pt,$subt,$entt);
-				}
-				else
-				{
-					$answer_info=answerInfo(-8);
-				}
+				$noteID=$_POST["noteID"];
+				list($answer_info,$answer)=unlockNote($username,$password,$noteID);
 			}
 			else
 			{
-				$answer_info=answerInfo(-4);
-			}
-		}
-		else if($_POST["action"]=="update")
-		{
-			if(($ut!="") && ($pt!=""))
-			{
-				if((array_key_exists("noteID",$_POST)) && (array_key_exists("subject",$_POST)) && (array_key_exists("entry",$_POST)))
-				{
-					$subt=trim($_POST["subject"]);
-					$entt=trim($_POST["entry"]);
-					$noteID=$_POST["noteID"];
-					list($answer_info,$answer)=updateNote($ut,$pt,$subt,$entt,$noteID);
-				}
-				else
-				{
-					$answer_info=answerInfo(-8);
-				}
-			}
-			else
-			{
-				$answer_info=answerInfo(-4);
-			}
-		}
-		else if($_POST["action"]=="delete")
-		{
-			if(($ut!="") && ($pt!=""))
-			{
-				if(array_key_exists("noteID",$_POST))
-				{
-					$noteID=$_POST["noteID"];
-					list($answer_info,$answer)=deleteNote($ut,$pt,$noteID);
-				}
-				else
-				{
-					$answer_info=answerInfo(-8);
-				}
-			}
-			else
-			{
-				$answer_info=answerInfo(-4);
-			}
-		}
-		else if($_POST["action"]=="lock")
-		{
-			if(($ut!="") && ($pt!=""))
-			{
-				if(array_key_exists("noteID",$_POST))
-				{
-					$noteID=$_POST["noteID"];
-					list($answer_info,$answer)=lockNote($ut,$pt,$noteID);
-				}
-				else
-				{
-					$answer_info=answerInfo(-8);
-				}
-			}
-			else
-			{
-				$answer_info=answerInfo(-4);
-			}
-		}
-		else if($_POST["action"]=="unlock")
-		{
-			if(($ut!="") && ($pt!=""))
-			{
-				if(array_key_exists("noteID",$_POST))
-				{
-					$noteID=$_POST["noteID"];
-					list($answer_info,$answer)=unlockNote($ut,$pt,$noteID);
-				}
-				else
-				{
-					$answer_info=answerInfo(-8);
-				}
-			}
-			else
-			{
-				$answer_info=answerInfo(-4);
+				$answer_info=answerInfo(-8);
 			}
 		}
 		else

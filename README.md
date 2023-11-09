@@ -1,11 +1,12 @@
 # Noter Backend
 
-This repo contains my really simple (and ugly, tbh) PHP backend for my Noter project.
+This repo contains my really simple PHP backend for my Noter project.
 
 ## What is included in this repo?
 
-A PHP script implementing backend for simple notetaking (Noter, in short) application with some config PHP files.
-The solution here is provided in "ready to use" form. That's because there is `index.php` file, which is a main backend file.
+A PHP scripts implementing backend for simple notetaking (Noter, in short) application with some config PHP files.
+The solution here is provided in "ready to use" form. That's the reason, why there is `index.php` file, which is a main backend file.
+Files `noterapi.php` and `noterconst.php` implements all functions and constants needed for this solution to work.
 Files `mysql-connect.php` and `noter-config.php` are configuration files provided here with default values.
 `test.php` is a really, really simple form for testing the backend.
 
@@ -117,4 +118,4 @@ If you like to use any part of these codes in your software, just please give me
 In case you would like to make paid software and use parts of these codes - please, contact me before.
 
 *Bartłomiej "Magnetic-Fox" Węgrzyn,
-November 8, 2021 - November 6, 2023*
+November 8, 2021 - November 9, 2023*

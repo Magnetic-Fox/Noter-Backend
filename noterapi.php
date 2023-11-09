@@ -1,8 +1,32 @@
 <?php
 
+/*
+
+NoterAPI v1.0b (less ugly)
+(C)2021-2023 Bartłomiej "Magnetic-Fox" Węgrzyn!
+
+ Functions:
+----------
+
+userRegister		User registration
+userChangePassword	Change user password
+userInfo		Get user information
+userRemove		User removal
+noteList		Brief notes listing
+getNote			Get note
+addNote			Add note
+updateNote		Update note
+deleteNote		Delete note
+lockNote		Lock note
+unlockNote		Unlock note
+
+*/
+
 include_once('mysql-connect.php');
 include_once('noter-config.php');
 include_once('noterconst.php');
+
+// Helper functions
 
 function exportDate($dateString)
 {
@@ -90,7 +114,6 @@ function register($username, $password)
 function userUpdate($username, $password, $newPassword)
 {
 	global $conn;
-	//$newPassword=trim($newPassword);
 	if(($username!="") && ($password!="") && ($newPassword!=""))
 	{
 		$res=login($username,$password);
@@ -137,6 +160,8 @@ function noteLockState($noteID, $userID, $lockState)
 	return ($conn->affected_rows>0);
 }
 
+// Main API functions
+
 function userRegister($username, $password)
 {
 	global $conn;
@@ -144,15 +169,15 @@ function userRegister($username, $password)
 	$res=register($username,$password);
 	if($res==-1)
 	{
-		$answer_info=answerInfo(-3);
+		$answer_info=answerInfo(ERROR_USER_EXISTS);
 	}
 	else if($res==1)
 	{
-		$answer_info=answerInfo(1);
+		$answer_info=answerInfo(INFO_USER_CREATED);
 	}
 	else
 	{
-		$answer_info=answerInfo(-4);
+		$answer_info=answerInfo(ERROR_NO_CREDENTIALS);
 	}
 	return array($answer_info,null);
 }
@@ -164,15 +189,15 @@ function userChangePassword($username, $password, $newPassword)
 	$res=userUpdate($username,$password,$newPassword);
 	if($res==1)
 	{
-		$answer_info=answerInfo(2);
+		$answer_info=answerInfo(INFO_USER_UPDATED);
 	}
 	else if($res==-1)
 	{
-		$answer_info=answerInfo(-7);
+		$answer_info=answerInfo(ERROR_USER_DEACTIVATED);
 	}
 	else
 	{
-		$answer_info=answerInfo(-6);
+		$answer_info=answerInfo(ERROR_LOGIN_INCORRECT);
 	}
 	return array($answer_info,null);
 }
@@ -192,15 +217,15 @@ function userInfo($username, $password)
 		$stmt->bind_result($id, $username, $dateRegistered, $userAgent, $lastChanged, $lastUserAgent);
 		$stmt->fetch();
 		$answer=array("user" => array("id" => $id, "username" => $username, "date_registered" => exportDate($dateRegistered), "user_agent" => $userAgent, "last_changed" => exportDate($lastChanged), "last_user_agent" => $lastUserAgent));
-		$answer_info=answerInfo(9,array("user"));
+		$answer_info=answerInfo(INFO_USER_INFO_RETRIEVED,array("user"));
 	}
 	else if($res==-1)
 	{
-		$answer_info=answerInfo(-7);
+		$answer_info=answerInfo(ERROR_USER_DEACTIVATED);
 	}
 	else
 	{
-		$answer_info=answerInfo(-6);
+		$answer_info=answerInfo(ERROR_LOGIN_INCORRECT);
 	}
 	return array($answer_info,$answer);
 }
@@ -224,25 +249,25 @@ function userRemove($username, $password)
 			$stmt->execute();
 			if($conn->affected_rows>0)
 			{
-				$answer_info=answerInfo(3);
+				$answer_info=answerInfo(INFO_USER_REMOVED);
 			}
 			else
 			{
-				$answer_info=answerInfo(-10);
+				$answer_info=answerInfo(ERROR_USER_NOT_EXISTS);
 			}
 		}
 		else
 		{
-			$answer_info=answerInfo(-11);
+			$answer_info=answerInfo(ERROR_USER_REMOVAL_FAILURE);
 		}
 	}
 	else if($res==-1)
 	{
-		$answer_info=answerInfo(-7);
+		$answer_info=answerInfo(ERROR_USER_DEACTIVATED);
 	}
 	else
 	{
-		$answer_info=answerInfo(-6);
+		$answer_info=answerInfo(ERROR_LOGIN_INCORRECT);
 	}
 	return array($answer_info,null);
 }
@@ -267,16 +292,16 @@ function noteList($username, $password)
 			$count++;
 			array_push($notesSummary,array("id" => $id, "subject" => $subject, "last_modified" => exportDate($lastModified)));
 		}
-		$answer_info=answerInfo(4,array("count","notes_summary"));
+		$answer_info=answerInfo(INFO_LIST_SUCCESSFUL,array("count","notes_summary"));
 		$answer=array("count" => $count, "notes_summary" => $notesSummary);
 	}
 	else if($res==-1)
 	{
-		$answer_info=answerInfo(-7);
+		$answer_info=answerInfo(ERROR_USER_DEACTIVATED);
 	}
 	else
 	{
-		$answer_info=answerInfo(-6);
+		$answer_info=answerInfo(ERROR_LOGIN_INCORRECT);
 	}
 	return array($answer_info,$answer);
 }
@@ -296,21 +321,21 @@ function getNote($username, $password, $noteID)
 		$stmt->bind_result($id,$subject,$entry,$dateAdded,$lastModified,$locked,$userAgent,$lastUserAgent);
 		if($stmt->fetch())
 		{
-			$answer_info=answerInfo(5,array("note"));
+			$answer_info=answerInfo(INFO_NOTE_RETRIEVED,array("note"));
 			$answer=array("note" => array("id" => $id, "subject" => $subject, "entry" => $entry, "date_added" => exportDate($dateAdded), "last_modified" => exportDate($lastModified), "locked" => $locked, "user_agent" => $userAgent, "last_user_agent" => $lastUserAgent));
 		}
 		else
 		{
-			$answer_info=answerInfo(-9);
+			$answer_info=answerInfo(ERROR_NOTE_NOT_EXISTS);
 		}
 	}
 	else if($res==-1)
 	{
-		$answer_info=answerInfo(-7);
+		$answer_info=answerInfo(ERROR_USER_DEACTIVATED);
 	}
 	else
 	{
-		$answer_info=answerInfo(-6);
+		$answer_info=answerInfo(ERROR_LOGIN_INCORRECT);
 	}
 	return array($answer_info,$answer);
 }
@@ -332,7 +357,7 @@ function addNote($username, $password, $subject, $entry)
 			$stmt->execute();
 			if($conn->affected_rows!=-1)
 			{
-				$answer_info=answerInfo(6,array("new_id"));
+				$answer_info=answerInfo(INFO_NOTE_CREATED,array("new_id"));
 				$query="SELECT MAX(ID) FROM Noter_Entries WHERE UserID=?";
 				$stmt=$conn->prepare($query);
 				$stmt->bind_param("i",$res);
@@ -343,22 +368,22 @@ function addNote($username, $password, $subject, $entry)
 			}
 			else
 			{
-				$answer_info=answerInfo(-512);
+				$answer_info=answerInfo(ERROR_INTERNAL_SERVER_ERROR);
 			}
 		}
 		else
 		{
-			$answer_info=answerInfo(-8);
+			$answer_info=answerInfo(ERROR_NO_NECESSARY_INFORMATION);
 		}
 		
 	}
 	else if($res==-1)
 	{
-		$answer_info=answerInfo(-7);
+		$answer_info=answerInfo(ERROR_USER_DEACTIVATED);
 	}
 	else
 	{
-		$answer_info=answerInfo(-6);
+		$answer_info=answerInfo(ERROR_LOGIN_INCORRECT);
 	}
 	return array($answer_info,$answer);
 }
@@ -375,7 +400,7 @@ function updateNote($username, $password, $subject, $entry, $noteID)
 		{
 			if(noteLocked($noteID))
 			{
-				$answer_info=answerInfo(-12);
+				$answer_info=answerInfo(ERROR_NOTE_LOCKED);
 			}
 			else
 			{
@@ -386,26 +411,26 @@ function updateNote($username, $password, $subject, $entry, $noteID)
 				$stmt->execute();
 				if($conn->affected_rows>0)
 				{
-					$answer_info=answerInfo(7);
+					$answer_info=answerInfo(INFO_NOTE_UPDATED);
 				}
 				else
 				{
-					$answer_info=answerInfo(-9);
+					$answer_info=answerInfo(ERROR_NOTE_NOT_EXISTS);
 				}
 			}
 		}
 		else
 		{
-			$answer_info=answerInfo(-8);
+			$answer_info=answerInfo(ERROR_NO_NECESSARY_INFORMATION);
 		}
 	}
 	else if($res==-1)
 	{
-		$answer_info=answerInfo(-7);
+		$answer_info=answerInfo(ERROR_USER_DEACTIVATED);
 	}
 	else
 	{
-		$answer_info=answerInfo(-6);
+		$answer_info=answerInfo(ERROR_LOGIN_INCORRECT);
 	}
 	return array($answer_info,$answer);
 }
@@ -420,7 +445,7 @@ function deleteNote($username, $password, $noteID)
 	{
 		if(noteLocked($noteID))
 		{
-			$answer_info=answerInfo(-12);
+			$answer_info=answerInfo(ERROR_NOTE_LOCKED);
 		}
 		else
 		{
@@ -430,21 +455,21 @@ function deleteNote($username, $password, $noteID)
 			$stmt->execute();
 			if($conn->affected_rows>0)
 			{
-				$answer_info=answerInfo(8);
+				$answer_info=answerInfo(INFO_NOTE_DELETED);
 			}
 			else
 			{
-				$answer_info=answerInfo(-9);
+				$answer_info=answerInfo(ERROR_NOTE_NOT_EXISTS);
 			}
 		}
 	}
 	else if($res==-1)
 	{
-		$answer_info=answerInfo(-7);
+		$answer_info=answerInfo(ERROR_USER_DEACTIVATED);
 	}
 	else
 	{
-		$answer_info=answerInfo(-6);
+		$answer_info=answerInfo(ERROR_LOGIN_INCORRECT);
 	}
 	return array($answer_info,$answer);
 }
@@ -459,27 +484,27 @@ function lockNote($username, $password, $noteID)
 	{
 		if(noteLockState($noteID,$res,true))
 		{
-			$answer_info=answerInfo(10);
+			$answer_info=answerInfo(INFO_NOTE_LOCKED);
 		}
 		else
 		{
 			if(noteLocked($noteID))
 			{
-				$answer_info=answerInfo(-13);
+				$answer_info=answerInfo(ERROR_NOTE_ALREADY_LOCKED);
 			}
 			else
 			{
-				$answer_info=answerInfo(-9);
+				$answer_info=answerInfo(ERROR_NOTE_NOT_EXISTS);
 			}
 		}
 	}
 	else if($res==-1)
 	{
-		$answer_info=answerInfo(-7);
+		$answer_info=answerInfo(ERROR_USER_DEACTIVATED);
 	}
 	else
 	{
-		$answer_info=answerInfo(-6);
+		$answer_info=answerInfo(ERROR_LOGIN_INCORRECT);
 	}
 	return array($answer_info,$answer);
 }
@@ -494,27 +519,27 @@ function unlockNote($username, $password, $noteID)
 	{
 		if(noteLockState($noteID,$res,false))
 		{
-			$answer_info=answerInfo(11);
+			$answer_info=answerInfo(INFO_NOTE_UNLOCKED);
 		}
 		else
 		{
 			if(noteLocked($noteID))
 			{
-				$answer_info=answerInfo(-9);
+				$answer_info=answerInfo(ERROR_NOTE_NOT_EXISTS);
 			}
 			else
 			{
-				$answer_info=answerInfo(-14);
+				$answer_info=answerInfo(ERROR_NOTE_ALREADY_UNLOCKED);
 			}
 		}
 	}
 	else if($res==-1)
 	{
-		$answer_info=answerInfo(-7);
+		$answer_info=answerInfo(ERROR_USER_DEACTIVATED);
 	}
 	else
 	{
-		$answer_info=answerInfo(-6);
+		$answer_info=answerInfo(ERROR_LOGIN_INCORRECT);
 	}
 	return array($answer_info,$answer);
 }

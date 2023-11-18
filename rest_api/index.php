@@ -1,128 +1,36 @@
 <?php
 
+/*
+
+Noter REST API 1.0
+(C)2023 Bartłomiej "Magnetic-Fox" Węgrzyn!
+
+ Endpoints:
+------------
+
+GET    /			- get server info
+GET    /users			- get current user
+GET    /users/<id>		- get user by ID (if allowed)
+POST   /users			- create user
+PUT    /users/<id>/password	- change user's password
+DELETE /users/<id>		- delete user
+
+GET    /notes			- get note list
+GET    /notes/<id>		- get note
+POST   /notes			- create note
+PUT    /notes/<id>		- update whole note
+PUT    /notes/<id>/locked	- change lock state
+PATCH  /notes/<id>		- update note partially (subject or entry or both)
+DELETE /notes/<id>		- delete note
+
+*/
+
 include_once('../noter-config.php');
 include_once('../noterapi.php');
 include_once('../noterconst.php');
 
-const API_DIRECTORY=			"rest_api";
-
-const STRING_ERROR_INVALID_METHOD=	"Requested method not allowed here.";
-const STRING_ERROR_NOT_FOUND=		"Requested object was not found.";
-const STRING_ERROR_LOGIN_INCORRECT=	"Incorrect login information.";
-const STRING_ERROR_BAD_REQUEST=		"This request was not properly formatted.";
-const STRING_ERROR_WRONG_MEDIA=		"Media type sent not supported.";
-const STRING_ERROR_NO_USABLE_INFORMATION="Request had invalid or missing data.";
-const STRING_ERROR_USER_EXISTS=		"User exists. You have to choose another username.";
-const STRING_ERROR_INTERNAL=		"Internal server error.";
-const STRING_ERROR_USER_DEACTIVATED=	"User deactivated.";
-const STRING_ERROR_NOTE_LOCKED=		"Note locked.";
-
-const ERROR_INTERNAL=			-18;
-const ERROR_WRONG_MEDIA=		-17;
-const ERROR_BAD_REQUEST=		-16;
-const ERROR_NOT_FOUND=			-15;
-
-$shouldStop=false;
-
-function prepareRequest()
-{
-	$uri=explode("/",$_SERVER['REQUEST_URI']);
-	$pos=array_search(API_DIRECTORY,$uri);
-	return array_filter(array_slice($uri,$pos+1));
-}
-
-function jsonReturn($inputArray)
-{
-	echo json_encode($inputArray);
-	return;
-}
-
-function errorReturn($error,$errorCode)
-{
-	jsonReturn(array("error" => $error, "error_code" => $errorCode));
-	return;
-}
-
-function allowedMethods($methods)
-{
-	header("Access-Control-Allow-Methods: ".$methods);
-	return;
-}
-
-function authorize()
-{
-	global $server_name;
-	if(!isset($_SERVER['PHP_AUTH_USER']))
-	{
-		header('WWW-Authenticate: Basic realm="'.$server_name.'"');
-		http_response_code(401);
-		return 0;
-	}
-	else
-	{
-		return login(trim($_SERVER['PHP_AUTH_USER']),trim($_SERVER['PHP_AUTH_PW']));
-	}
-}
-
-function isJson($input)
-{
-	json_decode($input);
-	return json_last_error() === JSON_ERROR_NONE;
-}
-
-function checkAndReadRequest($ignoreNothing = false)
-{
-	global $shouldStop;
-	if(isset($_SERVER['CONTENT_TYPE']))
-	{
-		if($_SERVER['CONTENT_TYPE']=="application/json")
-		{
-			$input=file_get_contents("php://input");
-			if(isJson($input))
-			{
-				return json_decode($input,true);
-			}
-			else
-			{
-				http_response_code(400);
-				errorReturn(STRING_ERROR_BAD_REQUEST,ERROR_BAD_REQUEST);
-				$shouldStop=true;
-				return null;
-			}
-		}
-		else
-		{
-			http_response_code(415);
-			errorReturn(STRING_ERROR_WRONG_MEDIA,ERROR_WRONG_MEDIA);
-			$shouldStop=true;
-			return null;
-		}
-	}
-	else
-	{
-		if(!$ignoreNothing)
-		{
-			http_response_code(422);
-			errorReturn(STRING_ERROR_NO_USABLE_INFORMATION,ERROR_NO_USABLE_INFORMATION);
-		}
-		return null;
-	}
-}
-
-function getCredentials()
-{
-	$username="";
-	$password="";
-	if(isset($_SERVER['PHP_AUTH_USER']))
-	{
-		$username=trim($_SERVER['PHP_AUTH_USER']);
-	}
-	if(isset($_SERVER['PHP_AUTH_PW']))
-	{
-		$password=trim($_SERVER['PHP_AUTH_PW']);
-	}
-	return array($username,$password);
-}
+include_once('restconst.php');
+include_once('restprocs.php');
 
 // Main API code
 

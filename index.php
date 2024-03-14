@@ -20,6 +20,11 @@ delete		Delete note
 lock		Lock note
 unlock		Unlock note
 
+ Modifiers:
+------------
+
+compress	Compress output data using BZip2
+
 */
 
 include_once('noter-config.php');
@@ -28,154 +33,143 @@ include_once('noterconst.php');
 
 // Main part of the backend
 
+if(array_key_exists("compress",$_GET)) {
+	$compress=($_GET["compress"]=="yes");
+} else if(array_key_exists("compress",$_POST)) {
+	$compress=($_POST["compress"]=="yes");
+} else {
+	$compress=false;
+}
+
 header("Content-Type: application/json");
+
+if($compress) {
+	header("X-BZ-Compressed: yes");
+}
 
 $server_info=array("name" => $server_name, "timezone" => $server_timezone, "version" => "1.0");
 $response=array();
 
-if(!$noter_enabled)
-{
+if(!$noter_enabled) {
 	$answer_info=answerInfo(ERROR_SERVICE_DISABLED);
 	$response=array("server" => $server_info, "answer_info" => $answer_info);
+	if($compress) {
+		$response=bzcompress($response,9);
+	}
 	die(json_encode($response));
 }
 
-if($conn->connect_error)
-{
+if($conn->connect_error) {
 	$answer_info=answerInfo(ERROR_INTERNAL_SERVER_ERROR);
 	$response=array("server" => $server_info, "answer_info" => $answer_info);
+	if($compress) {
+		$response=bzcompress($response,9);
+	}
 	die(json_encode($response));
 }
 
-if($_SERVER["REQUEST_METHOD"]=="GET")
-{
+if($_SERVER["REQUEST_METHOD"]=="GET") {
 	$answer_info=answerInfo(INFO_OK);
 }
-else if($_SERVER["REQUEST_METHOD"]=="POST")
-{
-	if(array_key_exists("action",$_POST) && (array_key_exists("username",$_POST)) && array_key_exists("password",$_POST))
-	{
+else if($_SERVER["REQUEST_METHOD"]=="POST") {
+	if(array_key_exists("action",$_POST) && (array_key_exists("username",$_POST)) && array_key_exists("password",$_POST)) {
 		$action=trim($_POST["action"]);
 		$username=trim($_POST["username"]);
 		$password=trim($_POST["password"]);
-		if(($username=="") || ($password==""))
-		{
+		if(($username=="") || ($password=="")) {
 			$answer_info=answerInfo(ERROR_NO_CREDENTIALS);
 		}
-		else if($action=="register")
-		{
+		else if($action=="register") {
 			list($answer_info,$answer)=userRegister($username,$password);
 		}
-		else if($action=="change")
-		{
-			if(array_key_exists("newPassword",$_POST))
-			{
+		else if($action=="change") {
+			if(array_key_exists("newPassword",$_POST)) {
 				list($answer_info,$answer)=userChangePassword($username,$password,trim($_POST["newPassword"]));
 			}
-			else
-			{
+			else {
 				$answer_info=answerInfo(ERROR_NO_NECESSARY_INFORMATION);
 			}
 		}
-		else if($action=="info")
-		{
+		else if($action=="info") {
 			list($answer_info,$answer)=userInfo($username,$password);
 		}
-		else if($action=="remove")
-		{
+		else if($action=="remove") {
 			list($answer_info,$answer)=userRemove($username,$password);
 		}
-		else if($action=="list")
-		{
+		else if($action=="list") {
 			list($answer_info,$answer)=noteList($username,$password);
 		}
-		else if($action=="retrieve")
-		{
-			if(array_key_exists("noteID",$_POST))
-			{
+		else if($action=="retrieve") {
+			if(array_key_exists("noteID",$_POST)) {
 				list($answer_info,$answer)=getNote($username,$password,$_POST["noteID"]);
 			}
-			else
-			{
+			else {
 				$answer_info=answerInfo(ERROR_NO_NECESSARY_INFORMATION);
 			}
 		}
-		else if($action=="add")
-		{
-			if(array_key_exists("subject",$_POST) && array_key_exists("entry",$_POST))
-			{
+		else if($action=="add") {
+			if(array_key_exists("subject",$_POST) && array_key_exists("entry",$_POST)) {
 				list($answer_info,$answer)=addNote($username,$password,trim($_POST["subject"]),trim($_POST["entry"]));
 			}
-			else
-			{
+			else {
 				$answer_info=answerInfo(ERROR_NO_NECESSARY_INFORMATION);
 			}
 		}
-		else if($action=="update")
-		{
-			if((array_key_exists("noteID",$_POST)) && (array_key_exists("subject",$_POST)) && (array_key_exists("entry",$_POST)))
-			{
+		else if($action=="update") {
+			if((array_key_exists("noteID",$_POST)) && (array_key_exists("subject",$_POST)) && (array_key_exists("entry",$_POST))) {
 				list($answer_info,$answer)=updateNote($username,$password,trim($_POST["subject"]),trim($_POST["entry"]),$_POST["noteID"]);
 			}
-			else
-			{
+			else {
 				$answer_info=answerInfo(ERROR_NO_NECESSARY_INFORMATION);
 			}
 		}
-		else if($action=="delete")
-		{
-			if(array_key_exists("noteID",$_POST))
-			{
+		else if($action=="delete") {
+			if(array_key_exists("noteID",$_POST)) {
 				list($answer_info,$answer)=deleteNote($username,$password,$_POST["noteID"]);
 			}
-			else
-			{
+			else {
 				$answer_info=answerInfo(ERROR_NO_NECESSARY_INFORMATION);
 			}
 		}
-		else if($action=="lock")
-		{
-			if(array_key_exists("noteID",$_POST))
-			{
+		else if($action=="lock") {
+			if(array_key_exists("noteID",$_POST)) {
 				list($answer_info,$answer)=lockNote($username,$password,$_POST["noteID"]);
 			}
-			else
-			{
+			else {
 				$answer_info=answerInfo(ERROR_NO_NECESSARY_INFORMATION);
 			}
 		}
-		else if($action=="unlock")
-		{
-			if(array_key_exists("noteID",$_POST))
-			{
+		else if($action=="unlock") {
+			if(array_key_exists("noteID",$_POST)) {
 				list($answer_info,$answer)=unlockNote($username,$password,$_POST["noteID"]);
 			}
-			else
-			{
+			else {
 				$answer_info=answerInfo(ERROR_NO_NECESSARY_INFORMATION);
 			}
 		}
-		else
-		{
+		else {
 			$answer_info=answerInfo(ERROR_UNKNOWN_ACTION);
 		}
 	}
-	else
-	{
+	else {
 		$answer_info=answerInfo(ERROR_NO_USABLE_INFORMATION);
 	}
 }
-else
-{
+else {
 	$answer_info=answerInfo(ERROR_INVALID_METHOD);
 }
 
 $response=array("server" => $server_info, "answer_info" => $answer_info);
-if(isset($answer))
-{
+if(isset($answer)) {
 	$response["answer"]=$answer;
 }
 
-echo json_encode($response);
+$outputData=json_encode($response);
+
+if($compress) {
+	$outputData=bzcompress($outputData,9);
+}
+	
+echo $outputData;
 
 ?>

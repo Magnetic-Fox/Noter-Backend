@@ -2,8 +2,8 @@
 
 /*
 
-Noter Backend v1.0b (less ugly)
-(C)2021-2023 Bartłomiej "Magnetic-Fox" Węgrzyn!
+Noter Backend v1.0c
+(C)2021-2024 Bartłomiej "Magnetic-Fox" Węgrzyn!
 
  Actions:
 ----------
@@ -23,7 +23,7 @@ unlock		Unlock note
  Modifiers:
 ------------
 
-compress	Compress output data using BZip2
+compress	Compress output data using BZip2 (output compressed data only if it makes any sense)
 
 */
 
@@ -166,10 +166,15 @@ if(isset($answer)) {
 
 $outputData=json_encode($response);
 
+// compression filter
 if($compress) {
-	$outputData=bzcompress($outputData,9);
+	$outputData2=bzcompress($outputData,9);
+	// output compressed data only if it makes any sense...
+	if(strlen($outputData2)<strlen($outputData)) {
+		$outputData=$outputData2;
+	}
 }
-	
+
 echo $outputData;
 
 ?>

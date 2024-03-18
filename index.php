@@ -41,30 +41,43 @@ if(array_key_exists("compress",$_GET)) {
 	$compress=false;
 }
 
-header("Content-Type: application/json");
-
-if($compress) {
-	header("X-BZ-Compressed: yes");
+function addHeaders($dataCompressed = false) {
+	header("Content-Type: application/json");
+	if($dataCompressed) {
+		header("X-BZ-Compressed: yes");
+	}
 }
 
 $server_info=array("name" => $server_name, "timezone" => $server_timezone, "version" => "1.0");
 $response=array();
 
 if(!$noter_enabled) {
+	$compressData=false;
 	$answer_info=answerInfo(ERROR_SERVICE_DISABLED);
 	$response=array("server" => $server_info, "answer_info" => $answer_info);
 	if($compress) {
-		$response=bzcompress($response,9);
+		$response2=bzcompress($response,9);
+		$compressData=strlen($response2)<strlen($response);
+		if($compressData) {
+			$response=$response2;
+		}
 	}
+	addHeaders($compressData);
 	die(json_encode($response));
 }
 
 if($conn->connect_error) {
+	$compressData=false;
 	$answer_info=answerInfo(ERROR_INTERNAL_SERVER_ERROR);
 	$response=array("server" => $server_info, "answer_info" => $answer_info);
 	if($compress) {
-		$response=bzcompress($response,9);
+		$response2=bzcompress($response,9);
+		$compressData=strlen($response2)<strlen($response);
+		if($compressData) {
+			$response=$response2;
+		}
 	}
+	addHeaders($compressData);
 	die(json_encode($response));
 }
 
@@ -167,13 +180,15 @@ if(isset($answer)) {
 $outputData=json_encode($response);
 
 // compression filter
+$compressData = false;
 if($compress) {
 	$outputData2=bzcompress($outputData,9);
-	// output compressed data only if it makes any sense...
-	if(strlen($outputData2)<strlen($outputData)) {
+	$compressData=strlen($outputData2)<strlen($outputData);
+	if($compressData) {
 		$outputData=$outputData2;
 	}
 }
+addHeaders($compressData);
 
 echo $outputData;
 

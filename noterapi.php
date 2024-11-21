@@ -3,7 +3,7 @@
 /*
 
 NoterAPI v1.0c (less ugly)
-(C)2021-2023 Bartłomiej "Magnetic-Fox" Węgrzyn!
+(C)2021-2024 Bartłomiej "Magnetic-Fox" Węgrzyn!
 
  Functions:
 ----------
@@ -89,7 +89,17 @@ function register($username, $password) {
 			$passwordHash=password_hash($password,PASSWORD_DEFAULT);
 			$query="INSERT INTO Noter_Users(UserName, PasswordHash, DateRegistered, RemoteAddress, ForwardedFor, UserAgent, LastChanged, LastRemoteAddress, LastForwardedFor, LastUserAgent) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
 			$stmt=$conn->prepare($query);
-			$stmt->bind_param("ssssssssss",$username,$passwordHash,$now,$_SERVER["REMOTE_ADDR"],$_SERVER["HTTP_X_FORWARDED_FOR"],$_SERVER["HTTP_USER_AGENT"],$now,$_SERVER["REMOTE_ADDR"],$_SERVER["HTTP_X_FORWARDED_FOR"],$_SERVER["HTTP_USER_AGENT"]);
+			$stmt->bind_param("ssssssssss",
+					$username,
+					$passwordHash,
+					$now,
+					$_SERVER["REMOTE_ADDR"],
+					$_SERVER["HTTP_X_FORWARDED_FOR"],
+					$_SERVER["HTTP_USER_AGENT"],
+					$now,
+					$_SERVER["REMOTE_ADDR"],
+					$_SERVER["HTTP_X_FORWARDED_FOR"],
+					$_SERVER["HTTP_USER_AGENT"]);
 			$stmt->execute();
 			if($conn->affected_rows!=-1) {
 				return 1;
@@ -108,7 +118,13 @@ function userUpdate($username, $password, $newPassword) {
 			$passwordHash=password_hash($newPassword,PASSWORD_DEFAULT);
 			$query="UPDATE Noter_Users SET PasswordHash=?, LastChanged=?, LastRemoteAddress=?, LastForwardedFor=?, LastUserAgent=? WHERE ID=?";
 			$stmt=$conn->prepare($query);
-			$stmt->bind_param("sssssi",$passwordHash,$now,$_SERVER["REMOTE_ADDR"],$_SERVER["HTTP_X_FORWARDED_FOR"],$_SERVER["HTTP_USER_AGENT"],$res);
+			$stmt->bind_param("sssssi",
+					$passwordHash,
+					$now,
+					$_SERVER["REMOTE_ADDR"],
+					$_SERVER["HTTP_X_FORWARDED_FOR"],
+					$_SERVER["HTTP_USER_AGENT"],
+					$res);
 			$stmt->execute();
 			if($conn->affected_rows!=-1) {
 				return 1;
@@ -136,7 +152,10 @@ function noteLockState($noteID, $userID, $lockState) {
 	global $conn;
 	$query="UPDATE Noter_Entries SET Locked=? WHERE ID=? AND UserID=?";
 	$stmt=$conn->prepare($query);
-	$stmt->bind_param("iii",$lockState,$noteID,$userID);
+	$stmt->bind_param("iii",
+			$lockState,
+			$noteID,
+			$userID);
 	$stmt->execute();
 	return ($conn->affected_rows>0);
 }
@@ -185,9 +204,19 @@ function userInfo($username, $password) {
 		$stmt=$conn->prepare($query);
 		$stmt->bind_param("i",$res);
 		$stmt->execute();
-		$stmt->bind_result($id, $username, $dateRegistered, $userAgent, $lastChanged, $lastUserAgent);
+		$stmt->bind_result($id,
+				$username,
+				$dateRegistered,
+				$userAgent,
+				$lastChanged,
+				$lastUserAgent);
 		$stmt->fetch();
-		$answer=array("user" => array("id" => $id, "username" => $username, "date_registered" => exportDate($dateRegistered), "user_agent" => $userAgent, "last_changed" => exportDate($lastChanged), "last_user_agent" => $lastUserAgent));
+		$answer=array("user" => array(	"id" => $id,
+						"username" => $username,
+						"date_registered" => exportDate($dateRegistered),
+						"user_agent" => $userAgent,
+						"last_changed" => exportDate($lastChanged),
+						"last_user_agent" => $lastUserAgent));
 		$answer_info=answerInfo(INFO_USER_INFO_RETRIEVED,array("user"));
 	}
 	else if($res==-1) {
@@ -243,15 +272,20 @@ function noteList($username, $password) {
 		$stmt=$conn->prepare($query);
 		$stmt->bind_param("i",$res);
 		$stmt->execute();
-		$stmt->bind_result($id, $subject, $lastModified);
+		$stmt->bind_result($id,
+				$subject,
+				$lastModified);
 		$count=0;
 		$notesSummary=array();
 		while($stmt->fetch()) {
 			$count++;
-			array_push($notesSummary,array("id" => $id, "subject" => $subject, "last_modified" => exportDate($lastModified)));
+			array_push($notesSummary,array(	"id" => $id,
+							"subject" => $subject,
+							"last_modified" => exportDate($lastModified)));
 		}
 		$answer_info=answerInfo(INFO_LIST_SUCCESSFUL,array("count","notes_summary"));
-		$answer=array("count" => $count, "notes_summary" => $notesSummary);
+		$answer=array(	"count" => $count,
+				"notes_summary" => $notesSummary);
 	}
 	else if($res==-1) {
 		$answer_info=answerInfo(ERROR_USER_DEACTIVATED);
@@ -272,10 +306,24 @@ function getNote($username, $password, $noteID) {
 		$stmt=$conn->prepare($query);
 		$stmt->bind_param("ii",$noteID,$res);
 		$stmt->execute();
-		$stmt->bind_result($id,$subject,$entry,$dateAdded,$lastModified,$locked,$userAgent,$lastUserAgent);
+		$stmt->bind_result($id,
+				$subject,
+				$entry,
+				$dateAdded,
+				$lastModified,
+				$locked,
+				$userAgent,
+				$lastUserAgent);
 		if($stmt->fetch()) {
 			$answer_info=answerInfo(INFO_NOTE_RETRIEVED,array("note"));
-			$answer=array("note" => array("id" => $id, "subject" => $subject, "entry" => $entry, "date_added" => exportDate($dateAdded), "last_modified" => exportDate($lastModified), "locked" => $locked, "user_agent" => $userAgent, "last_user_agent" => $lastUserAgent));
+			$answer=array("note" => array(	"id" => $id,
+							"subject" => $subject,
+							"entry" => $entry,
+							"date_added" => exportDate($dateAdded),
+							"last_modified" => exportDate($lastModified),
+							"locked" => $locked,
+							"user_agent" => $userAgent,
+							"last_user_agent" => $lastUserAgent));
 		}
 		else {
 			$answer_info=answerInfo(ERROR_NOTE_NOT_EXISTS);
@@ -300,7 +348,18 @@ function addNote($username, $password, $subject, $entry) {
 			$now=nowDate();
 			$query="INSERT INTO Noter_Entries(UserID, Subject, Entry, DateAdded, LastModified, RemoteAddress, ForwardedFor, UserAgent, LastRemoteAddress, LastForwardedFor, LastUserAgent) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
 			$stmt=$conn->prepare($query);
-			$stmt->bind_param("issssssssss",$res,$subject,$entry,$now,$now,$_SERVER["REMOTE_ADDR"],$_SERVER["HTTP_X_FORWARDED_FOR"],$_SERVER["HTTP_USER_AGENT"],$_SERVER["REMOTE_ADDR"],$_SERVER["HTTP_X_FORWARDED_FOR"],$_SERVER["HTTP_USER_AGENT"]);
+			$stmt->bind_param("issssssssss",
+					$res,
+					$subject,
+					$entry,
+					$now,
+					$now,
+					$_SERVER["REMOTE_ADDR"],
+					$_SERVER["HTTP_X_FORWARDED_FOR"],
+					$_SERVER["HTTP_USER_AGENT"],
+					$_SERVER["REMOTE_ADDR"],
+					$_SERVER["HTTP_X_FORWARDED_FOR"],
+					$_SERVER["HTTP_USER_AGENT"]);
 			$stmt->execute();
 			if($conn->affected_rows!=-1) {
 				$answer_info=answerInfo(INFO_NOTE_CREATED,array("new_id"));
@@ -319,7 +378,6 @@ function addNote($username, $password, $subject, $entry) {
 		else {
 			$answer_info=answerInfo(ERROR_NO_NECESSARY_INFORMATION);
 		}
-		
 	}
 	else if($res==-1) {
 		$answer_info=answerInfo(ERROR_USER_DEACTIVATED);
@@ -344,7 +402,15 @@ function updateNote($username, $password, $subject, $entry, $noteID) {
 				$now=nowDate();
 				$query="UPDATE Noter_Entries SET Subject=?, Entry=?, LastModified=?, LastRemoteAddress=?, LastForwardedFor=?, LastUserAgent=? WHERE ID=? AND UserID=?";
 				$stmt=$conn->prepare($query);
-				$stmt->bind_param("ssssssii",$subject,$entry,$now,$_SERVER["REMOTE_ADDR"],$_SERVER["HTTP_X_FORWARDED_FOR"],$_SERVER["HTTP_USER_AGENT"],$noteID,$res);
+				$stmt->bind_param("ssssssii",
+						$subject,
+						$entry,
+						$now,
+						$_SERVER["REMOTE_ADDR"],
+						$_SERVER["HTTP_X_FORWARDED_FOR"],
+						$_SERVER["HTTP_USER_AGENT"],
+						$noteID,
+						$res);
 				$stmt->execute();
 				if($conn->affected_rows>0) {
 					$answer_info=answerInfo(INFO_NOTE_UPDATED);
@@ -381,7 +447,14 @@ function updateNoteSubject($username, $password, $subject, $noteID) {
 				$now=nowDate();
 				$query="UPDATE Noter_Entries SET Subject=?, LastModified=?, LastRemoteAddress=?, LastForwardedFor=?, LastUserAgent=? WHERE ID=? AND UserID=?";
 				$stmt=$conn->prepare($query);
-				$stmt->bind_param("sssssii",$subject,$now,$_SERVER["REMOTE_ADDR"],$_SERVER["HTTP_X_FORWARDED_FOR"],$_SERVER["HTTP_USER_AGENT"],$noteID,$res);
+				$stmt->bind_param("sssssii",
+						$subject,
+						$now,
+						$_SERVER["REMOTE_ADDR"],
+						$_SERVER["HTTP_X_FORWARDED_FOR"],
+						$_SERVER["HTTP_USER_AGENT"],
+						$noteID,
+						$res);
 				$stmt->execute();
 				if($conn->affected_rows>0) {
 					$answer_info=answerInfo(INFO_NOTE_UPDATED);
@@ -418,7 +491,14 @@ function updateNoteEntry($username, $password, $entry, $noteID) {
 				$now=nowDate();
 				$query="UPDATE Noter_Entries SET Entry=?, LastModified=?, LastRemoteAddress=?, LastForwardedFor=?, LastUserAgent=? WHERE ID=? AND UserID=?";
 				$stmt=$conn->prepare($query);
-				$stmt->bind_param("sssssii",$entry,$now,$_SERVER["REMOTE_ADDR"],$_SERVER["HTTP_X_FORWARDED_FOR"],$_SERVER["HTTP_USER_AGENT"],$noteID,$res);
+				$stmt->bind_param("sssssii",
+						$entry,
+						$now,
+						$_SERVER["REMOTE_ADDR"],
+						$_SERVER["HTTP_X_FORWARDED_FOR"],
+						$_SERVER["HTTP_USER_AGENT"],
+						$noteID,
+						$res);
 				$stmt->execute();
 				if($conn->affected_rows>0) {
 					$answer_info=answerInfo(INFO_NOTE_UPDATED);
@@ -525,5 +605,5 @@ function unlockNote($username, $password, $noteID) {
 	}
 	return array($answer_info,$answer);
 }
-	
+
 ?>

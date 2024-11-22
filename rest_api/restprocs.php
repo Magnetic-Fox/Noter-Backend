@@ -2,19 +2,19 @@
 
 /*
 
-Noter REST API 1.0 helper procedures
-(C)2023 Bartłomiej "Magnetic-Fox" Węgrzyn!
+Noter REST API 1.0a helper procedures
+(C)2023-2024 Bartłomiej "Magnetic-Fox" Węgrzyn!
 
 */
 
+// INCLUDES SECTION
 include_once('../noter-config.php');
 include_once('../noterapi.php');
 include_once('../noterconst.php');
-
 include_once('restconst.php');
 
-// Main API code
-
+// HELPER PROCEDURES SECTION
+// Some global variable
 $shouldStop=false;
 
 function prepareRequest()

@@ -2,8 +2,8 @@
 
 /*
 
-Noter REST API 1.0 additional constants
-(C)2023 Bartłomiej "Magnetic-Fox" Węgrzyn!
+Noter REST API 1.0a additional (comparing to original backend API) constants
+(C)2023-2024 Bartłomiej "Magnetic-Fox" Węgrzyn!
 
 */
 

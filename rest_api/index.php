@@ -2,12 +2,19 @@
 
 /*
 
-Noter REST API 1.0
-(C)2023 Bartłomiej "Magnetic-Fox" Węgrzyn!
+Noter REST API 1.0a (simply-patched version to work with 1.0d version of Noter Backend API)
+(C)2023-2024 Bartłomiej "Magnetic-Fox" Węgrzyn!
+
+
+ Some note
+------------
+Let's be sure - this REST API is very ugly, written in a big hurry and simply
+needs to be rewritten from scratch. This is the patched and working (as far as I know)
+version which should not crash at all. I'll make the new and better version someday.
+
 
  Endpoints:
 ------------
-
 GET    /			- get server info
 GET    /users			- get current user
 GET    /users/<id>		- get user by ID (if allowed)
@@ -25,26 +32,36 @@ DELETE /notes/<id>		- delete note
 
 */
 
+
+// INCLUDES SECTION
 include_once('../noter-config.php');
 include_once('../noterapi.php');
 include_once('../noterconst.php');
-
 include_once('restconst.php');
 include_once('restprocs.php');
 
-// Main API code
 
+// MAIN API CODE SECTION
+// Set headers
 header("Content-Type: application/json");
 header("Access-Control-Allow-Credentials: true");
 
+// Get request info at the beginning
 $method=$_SERVER['REQUEST_METHOD'];
 $request=prepareRequest();
 
+// Prepare some global variables
+$userID=0;
+$response=null;
+$answer_info=null;
+
+// Set empty request if nothing arrived
 if(!isset($request[0]))
 {
 	$request[0]="";
 }
 
+// Main part (big and ugly machinery goes here...)
 switch($request[0])
 {
 	// Root of the API
@@ -56,7 +73,7 @@ switch($request[0])
 			case "GET":
 			{
 				http_response_code(200);
-				jsonReturn(array("name" => $server_name, "timezone" => $server_timezone, "version" => "1.0"));
+				jsonReturn(array("name" => NOTER_NAME, "timezone" => NOTER_TIMEZONE, "version" => "1.0"));
 				break;
 			}
 			// Options here
@@ -114,7 +131,9 @@ switch($request[0])
 												$password=trim($data["old_password"]);
 												$newPassword=trim($data["new_password"]);
 												// Try to change password
-												$response=userChangePassword($username,$password,$newPassword)[0]["code"];
+												if(tryLogin($username,$password,$userID,$response)) {
+													$response=userChangePassword($userID,$newPassword)[0]["code"];
+												}
 												// If user is deactivated
 												if($response==ERROR_USER_DEACTIVATED)
 												{
@@ -196,7 +215,9 @@ switch($request[0])
 									// Get credentials
 									list($username,$password)=getCredentials();
 									// Get user information
-									list($answer_info,$answer)=userInfo($username,$password);
+									if(tryLogin($username,$password,$userID,$answer_info)) {
+										list($answer_info,$answer)=userInfo($userID);
+									}
 									// If possible
 									if($answer_info["code"]==INFO_USER_INFO_RETRIEVED)
 									{
@@ -250,7 +271,9 @@ switch($request[0])
 											//echo "deleteuser";
 											$username=trim($_SERVER['PHP_AUTH_USER']);
 											$password=trim($data["password"]);
-											$response=userRemove($username,$password)[0]["code"];
+											if(tryLogin($username,$password,$userID,$response)) {
+												$response=userRemove($userID)[0]["code"];
+											}
 											if($response==ERROR_USER_NOT_EXISTS)
 											{
 												http_response_code(404);
@@ -333,7 +356,9 @@ switch($request[0])
 					// Get credentials
 					list($username,$password)=getCredentials();
 					// Get user information
-					list($answer_info,$answer)=userInfo($username,$password);
+					if(tryLogin($username,$password,$userID,$answer_info)) {
+						list($answer_info,$answer)=userInfo($userID);
+					}
 					// If possible
 					if($answer_info["code"]==INFO_USER_INFO_RETRIEVED)
 					{
@@ -383,7 +408,9 @@ switch($request[0])
 							else
 							{
 								// Get user information to send it back
-								list($answer_info,$answer)=userInfo($username,$password);
+								if(tryLogin($username,$password,$userID,$answer_info)) {
+									list($answer_info,$answer)=userInfo($userID);
+								}
 								// This should be possible
 								if($answer_info["code"]==INFO_USER_INFO_RETRIEVED)
 								{
@@ -443,7 +470,9 @@ switch($request[0])
 								// Get credentials
 								list($username,$password)=getCredentials();
 								// Get note
-								list($answer_info,$answer)=getNote($username,$password,$request[1]);
+								if(tryLogin($username,$password,$userID,$answer_info)) {
+									list($answer_info,$answer)=getNote($userID,$request[1]);
+								}
 								// Note does not exists?
 								if($answer_info["code"]==ERROR_NOTE_NOT_EXISTS)
 								{
@@ -489,7 +518,9 @@ switch($request[0])
 											if($locked==0)
 											{
 												// Try to unlock
-												list($answer_info,$answer)=unlockNote($username,$password,$request[1]);
+												if(tryLogin($username,$password,$userID,$answer_info)) {
+													list($answer_info,$answer)=unlockNote($userID,$request[1]);
+												}
 												// Note does not exists?
 												if($answer_info["code"]==ERROR_NOTE_NOT_EXISTS)
 												{
@@ -519,7 +550,9 @@ switch($request[0])
 											else if($locked==1)
 											{
 												// Try to lock
-												list($answer_info,$answer)=lockNote($username,$password,$request[1]);
+												if(tryLogin($username,$password,$userID,$answer_info)) {
+													list($answer_info,$answer)=lockNote($userID,$request[1]);
+												}
 												// Note does not exists?
 												if($answer_info["code"]==ERROR_NOTE_NOT_EXISTS)
 												{
@@ -593,7 +626,9 @@ switch($request[0])
 							// Get credentials
 							list($username,$password)=getCredentials();
 							// Get note
-							list($answer_info,$answer)=getNote($username,$password,$request[1]);
+							if(tryLogin($username,$password,$userID,$answer_info)) {
+								list($answer_info,$answer)=getNote($userID,$request[1]);
+							}
 							// Note does not exists?
 							if($answer_info["code"]==ERROR_NOTE_NOT_EXISTS)
 							{
@@ -634,7 +669,9 @@ switch($request[0])
 									$subject=trim($data["subject"]);
 									$entry=trim($data["entry"]);
 									// Update note
-									list($answer_info,$answer)=updateNote($username,$password,$subject,$entry,$request[1]);
+									if(tryLogin($username,$password,$userID,$answer_info)) {
+										list($answer_info,$answer)=updateNote($userID,$subject,$entry,$request[1]);
+									}
 									// Note locked?
 									if($answer_info["code"]==ERROR_NOTE_LOCKED)
 									{
@@ -669,7 +706,9 @@ switch($request[0])
 									else
 									{
 										// Get updated note
-										list($answer_info_2,$answer_2)=getNote($username,$password,$request[1]);
+										if(tryLogin($username,$password,$userID,$answer_info_2)) {
+											list($answer_info_2,$answer_2)=getNote($userID,$request[1]);
+										}
 										// Any errors?
 										if(($answer_info_2["code"]==ERROR_NOTE_NOT_EXISTS) || ($answer_info_2["code"]==ERROR_USER_DEACTIVATED) || ($answer_info_2["code"]==ERROR_LOGIN_INCORRECT))
 										{
@@ -721,20 +760,24 @@ switch($request[0])
 									// If there are subject and entry in request, then just update note traditionally
 									if($entrycount==2)
 									{
-										list($answer_info,$answer)=updateNote($username,$password,$subject,$entry,$request[1]);
+										if(tryLogin($username,$password,$userID,$answer_info)) {
+											list($answer_info,$answer)=updateNote($userID,$subject,$entry,$request[1]);
+										}
 									}
 									// If not
 									else
 									{
-										// If there was subject change request
-										if(isset($subject))
-										{
-											list($answer_info,$answer)=updateNoteSubject($username,$password,$subject,$request[1]);
-										}
-										// If there was entry change request
-										if(isset($entry))
-										{
-											list($answer_info,$answer)=updateNoteEntry($username,$password,$entry,$request[1]);
+										if(tryLogin($username,$password,$userID,$answer_info)) {
+											// If there was subject change request
+											if(isset($subject))
+											{
+												list($answer_info,$answer)=updateNoteSubject($userID,$subject,$request[1]);
+											}
+											// If there was entry change request
+											if(isset($entry))
+											{
+												list($answer_info,$answer)=updateNoteEntry($userID,$entry,$request[1]);
+											}
 										}
 									}
 									// Anything changed at all?
@@ -777,7 +820,9 @@ switch($request[0])
 										}
 									}
 									// Get updated (or not) note
-									list($answer_info_2,$answer_2)=getNote($username,$password,$request[1]);
+									if(tryLogin($username,$password,$userID,$answer_info_2)) {
+										list($answer_info_2,$answer_2)=getNote($userID,$request[1]);
+									}
 									// Any errors?
 									if(($answer_info_2["code"]==ERROR_NOTE_NOT_EXISTS) || ($answer_info_2["code"]==ERROR_USER_DEACTIVATED) || ($answer_info_2["code"]==ERROR_LOGIN_INCORRECT))
 									{
@@ -804,7 +849,9 @@ switch($request[0])
 								if(!$shouldStop)
 								{
 									// Get not updated note
-									list($answer_info_2,$answer_2)=getNote($username,$password,$request[1]);
+									if(tryLogin($username,$password,$userID,$answer_info_2)) {
+										list($answer_info_2,$answer_2)=getNote($userID,$request[1]);
+									}
 									// Any errors?
 									if(($answer_info_2["code"]==ERROR_NOTE_NOT_EXISTS) || ($answer_info_2["code"]==ERROR_USER_DEACTIVATED) || ($answer_info_2["code"]==ERROR_LOGIN_INCORRECT))
 									{
@@ -827,7 +874,9 @@ switch($request[0])
 							// Get credentials
 							list($username,$password)=getCredentials();
 							// Delete note
-							list($answer_info,$answer)=deleteNote($username,$password,$request[1]);
+							if(tryLogin($username,$password,$userID,$answer_info)) {
+								list($answer_info,$answer)=deleteNote($userID,$request[1]);
+							}
 							// Note locked?
 							if($answer_info["code"]==ERROR_NOTE_LOCKED)
 							{
@@ -892,7 +941,9 @@ switch($request[0])
 					// Get credentials
 					list($username,$password)=getCredentials();
 					// Get note list
-					list($answer_info,$answer)=noteList($username,$password);
+					if(tryLogin($username,$password,$userID,$answer_info)) {
+						list($answer_info,$answer)=noteList($userID);
+					}
 					// User account disabled?
 					if($answer_info["code"]==ERROR_USER_DEACTIVATED)
 					{
@@ -928,7 +979,9 @@ switch($request[0])
 							$subject=trim($data["subject"]);
 							$entry=trim($data["entry"]);
 							// Add note
-							list($answer_info,$answer)=addNote($username,$password,$subject,$entry);
+							if(tryLogin($username,$password,$userID,$answer_info)) {
+								list($answer_info,$answer)=addNote($userID,$subject,$entry);
+							}
 							// Internal server error?
 							if($answer_info["code"]==ERROR_INTERNAL_SERVER_ERROR)
 							{
@@ -959,7 +1012,9 @@ switch($request[0])
 								// Get new ID
 								$newID=$answer["new_id"];
 								// Get created note
-								list($answer_info_2,$answer_2)=getNote($username,$password,$newID);
+								if(tryLogin($username,$password,$userID,$answer_info_2)) {
+									list($answer_info_2,$answer_2)=getNote($userID,$newID);
+								}
 								// Any errors?
 								if(($answer_info_2["code"]==ERROR_NOTE_NOT_EXISTS) || ($answer_info_2["code"]==ERROR_USER_DEACTIVATED) || ($answer_info_2["code"]==ERROR_LOGIN_INCORRECT))
 								{

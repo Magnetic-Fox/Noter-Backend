@@ -19,6 +19,8 @@
 			<input type="text" name="noteID"><br>
 			<label>NewPassword:</label>
 			<input type="password" name="newPassword"><br>
+			<label>Compress:</label>
+			<input type="text" name="compress"><br>
 			<input type="submit" name="submit" value="OK">
 		</form>
 	</body>

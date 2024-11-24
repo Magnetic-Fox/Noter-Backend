@@ -1,0 +1,16 @@
+FallbackResource /NoterAPI/rest_api/index.php
+
+<Files "restconfig.php">
+	Order Allow,Deny
+	Deny from all
+</Files>
+
+<Files "restconst.php">
+	Order Allow,Deny
+	Deny from all
+</Files>
+
+<Files "restprocs.php">
+	Order Allow,Deny
+	Deny from all
+</Files>

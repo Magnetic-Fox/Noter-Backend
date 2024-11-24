@@ -409,7 +409,7 @@ function updateNote($userID, $subject, $entry, $noteID) {
 	$answer=null;
 	$answer_info=null;
 	if(($subject!="") || ($entry!="")) {
-		if(noteLocked($noteID,$userID)) {
+		if(noteLocked($noteID,$userID)==1) {
 			$answer_info=answerInfo(ERROR_NOTE_LOCKED);
 		}
 		else {
@@ -490,7 +490,7 @@ function deleteNote($userID, $noteID) {
 	prepareConnection();
 	$answer=null;
 	$answer_info=null;
-	if(noteLocked($noteID,$userID)) {
+	if(noteLocked($noteID,$userID)==1) {
 		$answer_info=answerInfo(ERROR_NOTE_LOCKED);
 	}
 	else {

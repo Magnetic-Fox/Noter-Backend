@@ -44,10 +44,9 @@ function allowedMethods($methods)
 
 function authorize()
 {
-	global $server_name;
 	if(!isset($_SERVER['PHP_AUTH_USER']))
 	{
-		header('WWW-Authenticate: Basic realm="'.$server_name.'"');
+		header('WWW-Authenticate: Basic realm="'.NOTER_NAME.'"');
 		http_response_code(401);
 		return 0;
 	}

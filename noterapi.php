@@ -179,16 +179,20 @@ function userUpdate($userID, $newPassword) {
 }
 
 // Function to test if note is locked
-function noteLocked($noteID) {
+function noteLocked($noteID,$userID) {
 	global $conn;
 	prepareConnection();
-	$query="SELECT Locked FROM Noter_Entries WHERE ID=?";
+	$query="SELECT Locked FROM Noter_Entries WHERE ID=? AND UserID=?";
 	$stmt=$conn->prepare($query);
-	$stmt->bind_param("i",$noteID);
+	$stmt->bind_param("ii",$noteID,$userID);
 	$stmt->execute();
 	$stmt->bind_result($locked);
-	$stmt->fetch();
-	return $locked;
+	if($stmt->fetch()) {
+		return $locked;
+	}
+	else {
+		return -1;
+	}
 }
 
 // Function to change note's lock state (lock or unlock)
@@ -512,7 +516,11 @@ function lockNote($userID, $noteID) {
 		$answer_info=answerInfo(INFO_NOTE_LOCKED);
 	}
 	else {
-		if(noteLocked($noteID)) {
+		$noteLock=noteLocked($noteID,$userID);
+		if($noteLock==-1) {
+			$answer_info=answerInfo(ERROR_NOTE_NOT_EXISTS);
+		}
+		else if($noteLock) {
 			$answer_info=answerInfo(ERROR_NOTE_ALREADY_LOCKED);
 		}
 		else {
@@ -530,7 +538,11 @@ function unlockNote($userID, $noteID) {
 		$answer_info=answerInfo(INFO_NOTE_UNLOCKED);
 	}
 	else {
-		if(noteLocked($noteID)) {
+		$noteLock=noteLocked($noteID,$userID);
+		if($noteLock==-1) {
+			$answer_info=answerInfo(ERROR_NOTE_NOT_EXISTS);
+		}
+		if($noteLock) {
 			$answer_info=answerInfo(ERROR_NOTE_NOT_EXISTS);
 		}
 		else {

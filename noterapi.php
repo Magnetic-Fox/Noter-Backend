@@ -62,7 +62,7 @@ function prepareConnection() {
 	global $conn;
 	if(!isset($conn)) {
 		$conn=new mysqli(DB_SERVERNAME,DB_USERNAME,DB_PASSWORD,DB_NAME);
-		mysqli_set_charset($conn,"utf8");
+		mysqli_set_charset($conn,"utf8mb4");
 	}
 	return;
 }

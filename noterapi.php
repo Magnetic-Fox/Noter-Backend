@@ -2,8 +2,8 @@
 
 /*
 
-NoterAPI v1.0d (even less ugly)
-(C)2021-2024 Bartłomiej "Magnetic-Fox" Węgrzyn!
+NoterAPI v1.0e (with fixed the ugliest part ever)
+(C)2021-2026 Bartłomiej "Magnetic-Fox" Węgrzyn!
 
  Functions:
 ----------
@@ -384,9 +384,8 @@ function addNote($userID, $subject, $entry) {
 		$stmt->execute();
 		if($conn->affected_rows!=-1) {
 			$answer_info=answerInfo(INFO_NOTE_CREATED,array("new_id"));
-			$query="SELECT MAX(ID) FROM Noter_Entries WHERE UserID=?";
+			$query="SELECT LAST_INSERT_ID()";
 			$stmt=$conn->prepare($query);
-			$stmt->bind_param("i",$userID);
 			$stmt->execute();
 			$stmt->bind_result($newID);
 			$stmt->fetch();

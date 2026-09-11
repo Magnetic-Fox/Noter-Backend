@@ -2,7 +2,7 @@
 
 /*
 
-NoterAPI v1.0e (with fixed the ugliest part ever)
+NoterAPI v1.0f (with fixed the ugliest part ever + one thing made even better)
 (C)2021-2026 Bartłomiej "Magnetic-Fox" Węgrzyn!
 
  Functions:
@@ -384,12 +384,7 @@ function addNote($userID, $subject, $entry) {
 		$stmt->execute();
 		if($conn->affected_rows!=-1) {
 			$answer_info=answerInfo(INFO_NOTE_CREATED,array("new_id"));
-			$query="SELECT LAST_INSERT_ID()";
-			$stmt=$conn->prepare($query);
-			$stmt->execute();
-			$stmt->bind_result($newID);
-			$stmt->fetch();
-			$answer=array("new_id" => $newID);
+			$answer=array("new_id" => $stmt->insert_id);
 		}
 		else {
 			$answer_info=answerInfo(ERROR_INTERNAL_SERVER_ERROR);
